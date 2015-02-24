@@ -7,6 +7,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.io.FileUtils;
 import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.server.Server;
@@ -17,10 +18,15 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class EchoProxy extends ProxyServlet {
-    public static String OPTION_HELP = "help";
-    public static String OPTION_PORT = "port";
+    public static String OPTIONS_HELP = "help";
+    public static String OPTIONS_PORT = "port";
+    public static String OPTIONS_PREFIX = "echoPrefix";
+    public static String OPTIONS_FILE = "echoFile";
     public static String OPTIONS_SHUTDOWN_KEY = "shutdownKey";
     static private String USAGE = "Usage: java -jar <jar-file> <options>";
 
@@ -29,6 +35,7 @@ public class EchoProxy extends ProxyServlet {
     private static int MAX_PORT_VALUE = 65535;
 
     private String echoPrefix = "";
+    private Path echoFile = null;
     private String shutdownKey = null;
     private String shutdownContext = "/shutdown"; // default shutdown http://localhost/shutdown/{key}
     private boolean enableShutdown = false;
@@ -41,8 +48,23 @@ public class EchoProxy extends ProxyServlet {
             System.out.println("Received shutdown signal");
             System.exit(0);
         }
-        System.out.println(echoPrefix + request.getRequestURI());
+        logRequest(request);
         super.service(request, response);
+    }
+
+    private void logRequest(final HttpServletRequest request) {
+        String url = request.getRequestURL().toString();
+        if (request.getQueryString() != null) {
+            url += "?" + request.getQueryString();
+        }
+        System.out.println(echoPrefix + url);
+        if (echoFile != null) {
+            try {
+                FileUtils.writeStringToFile(echoFile.toFile(), url, StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public void setEnableShutdown(boolean enable) {
@@ -57,6 +79,13 @@ public class EchoProxy extends ProxyServlet {
         shutdownContext = context;
     }
 
+    public void setEchoFile(Path echoFile) {
+        this.echoFile = echoFile;
+    }
+
+    public void setEchoPrefix(String echoPrefix) {
+        this.echoPrefix = echoPrefix;
+    }
 
     protected Request addViaHeader(Request proxyRequest) {
         // proxyRequest.header(HttpHeader.VIA, VIA_HEADER);
@@ -67,16 +96,22 @@ public class EchoProxy extends ProxyServlet {
         String shutdownKey = null;
         String shutdownContext = "/shutdown";
         int port = DEFAULT_PORT;
-        if (cmd.hasOption(OPTION_PORT)) {
-            if (!isInteger(cmd.getOptionValue(OPTION_PORT), MIN_PORT_VALUE, MAX_PORT_VALUE)) {
-                System.err.println("Port (" + cmd.getOptionValue(OPTION_PORT) + ") must be integer in range " +
+        if (cmd.hasOption(OPTIONS_PORT)) {
+            if (!isInteger(cmd.getOptionValue(OPTIONS_PORT), MIN_PORT_VALUE, MAX_PORT_VALUE)) {
+                System.err.println("Port (" + cmd.getOptionValue(OPTIONS_PORT) + ") must be integer in range " +
                         MIN_PORT_VALUE + "-" + MAX_PORT_VALUE);
                 return;
             }
-            port = Integer.parseInt(cmd.getOptionValue(OPTION_PORT));
+            port = Integer.parseInt(cmd.getOptionValue(OPTIONS_PORT));
         }
         if (cmd.hasOption(OPTIONS_SHUTDOWN_KEY)) {
             shutdownKey = cmd.getOptionValue(OPTIONS_SHUTDOWN_KEY);
+        }
+        if (cmd.hasOption(OPTIONS_FILE)) {
+            echoFile = Paths.get(cmd.getOptionValue(OPTIONS_FILE));
+        }
+        if (cmd.hasOption(OPTIONS_PREFIX)) {
+            echoPrefix =cmd.getOptionValue(OPTIONS_PREFIX);
         }
 
         setEnableShutdown(shutdownKey != null);
@@ -120,9 +155,9 @@ public class EchoProxy extends ProxyServlet {
 
     private static Options getCommandlineOptions() {
         Options options = new Options();
-        Option help = new Option(OPTION_HELP, "Show usage information.");
+        Option help = new Option(OPTIONS_HELP, "Show usage information.");
         // port
-        Option port = new Option(OPTION_PORT, true, "Port transparent proxy server will listen on. Valid " +
+        Option port = new Option(OPTIONS_PORT, true, "Port transparent proxy server will listen on. Valid " +
                 "range " + MIN_PORT_VALUE + "-" + MAX_PORT_VALUE + ". Default port is " + DEFAULT_PORT + ". Optional.");
         port.setRequired(false);
         port.setType(Number.class);
@@ -130,10 +165,18 @@ public class EchoProxy extends ProxyServlet {
         Option shutdownKey = new Option(OPTIONS_SHUTDOWN_KEY, true, "Key used for shutting down proxy server. "
                 + "Optional.");
         shutdownKey.setRequired(false);
+        Option prefix = new Option(OPTIONS_PREFIX, true, "String to use as prefix for output (Default empty) "
+                + "Optional.");
+        prefix.setRequired(false);
+        Option file = new Option(OPTIONS_FILE, true, "Path to file to echo to. If given echo will be appended to file "
+                + "in addition to be printed to standard out. Optional.");
+        file.setRequired(false);
 
         options.addOption(help);
         options.addOption(port);
         options.addOption(shutdownKey);
+        options.addOption(prefix);
+        options.addOption(file);
         return options;
     }
 
@@ -150,7 +193,7 @@ public class EchoProxy extends ProxyServlet {
             printHelp();
             return;
         }
-        if (cmd.hasOption(OPTION_HELP)) {
+        if (cmd.hasOption(OPTIONS_HELP)) {
             printHelp();
             return;
         }
@@ -161,7 +204,7 @@ public class EchoProxy extends ProxyServlet {
     private static void printHelp() {
         HelpFormatter formatter = new HelpFormatter();
         Options options = getCommandlineOptions();
-        options.addOption(new Option(OPTION_HELP, "Print this message"));
+        options.addOption(new Option(OPTIONS_HELP, "Print this message"));
         formatter.printHelp(USAGE, options);
     }
 
