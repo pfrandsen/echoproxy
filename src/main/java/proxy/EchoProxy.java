@@ -60,7 +60,8 @@ public class EchoProxy extends ProxyServlet {
         System.out.println(echoPrefix + url);
         if (echoFile != null) {
             try {
-                FileUtils.writeStringToFile(echoFile.toFile(), url, StandardCharsets.UTF_8);
+                FileUtils.writeStringToFile(echoFile.toFile(), url + System.lineSeparator(), StandardCharsets.UTF_8,
+                        true); // append
             } catch (Exception e) {
                 e.printStackTrace();
             }
