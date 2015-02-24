@@ -88,9 +88,8 @@ public class EchoProxy extends ProxyServlet {
         this.echoPrefix = echoPrefix;
     }
 
-    protected Request addViaHeader(Request proxyRequest) {
+    protected void addViaHeader(Request proxyRequest) {
         // proxyRequest.header(HttpHeader.VIA, VIA_HEADER);
-        return proxyRequest;
     }
 
     public void run(CommandLine cmd) {
@@ -109,10 +108,10 @@ public class EchoProxy extends ProxyServlet {
             shutdownKey = cmd.getOptionValue(OPTIONS_SHUTDOWN_KEY);
         }
         if (cmd.hasOption(OPTIONS_FILE)) {
-            echoFile = Paths.get(cmd.getOptionValue(OPTIONS_FILE));
+            setEchoFile(Paths.get(cmd.getOptionValue(OPTIONS_FILE)));
         }
         if (cmd.hasOption(OPTIONS_PREFIX)) {
-            echoPrefix =cmd.getOptionValue(OPTIONS_PREFIX);
+            setEchoPrefix(cmd.getOptionValue(OPTIONS_PREFIX));
         }
 
         setEnableShutdown(shutdownKey != null);
@@ -133,7 +132,7 @@ public class EchoProxy extends ProxyServlet {
             server.start();
             System.out.println("\nEcho proxy server running, listening on port " + port);
             if (shutdownKey != null) {
-                System.out.println("Shutdown url http://localhost:" + port + "/" + shutdownContext + "/"
+                System.out.println("Shutdown url http://localhost:" + port + shutdownContext + "/"
                         + shutdownKey + "\n");
             }
         } catch (Exception e) {
