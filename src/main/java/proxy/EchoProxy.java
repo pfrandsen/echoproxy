@@ -8,7 +8,9 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
-import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.HttpProxy;
+import org.eclipse.jetty.client.ProxyConfiguration;
 import org.eclipse.jetty.proxy.ProxyServlet;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -25,6 +27,7 @@ import java.nio.file.Paths;
 public class EchoProxy extends ProxyServlet {
     public static String OPTIONS_HELP = "help";
     public static String OPTIONS_PORT = "port";
+    public static String OPTIONS_HTTP_PROXY = "httpProxy";
     public static String OPTIONS_PREFIX = "echoPrefix";
     public static String OPTIONS_FILE = "echoFile";
     public static String OPTIONS_SHUTDOWN_KEY = "shutdownKey";
@@ -34,6 +37,8 @@ public class EchoProxy extends ProxyServlet {
     private static int MIN_PORT_VALUE = 1024;
     private static int MAX_PORT_VALUE = 65535;
 
+    private String httpProxyHost = null;
+    private int httpProxyPort;
     private String echoPrefix = "";
     private Path echoFile = null;
     private String shutdownKey = null;
@@ -68,6 +73,17 @@ public class EchoProxy extends ProxyServlet {
         }
     }
 
+    @Override
+    protected HttpClient createHttpClient() throws ServletException {
+        if (httpProxyHost == null) {
+            return super.createHttpClient();
+        }
+        HttpClient httpClient = super.createHttpClient();
+        ProxyConfiguration proxyConfiguration = httpClient.getProxyConfiguration();
+        proxyConfiguration.getProxies().add(new HttpProxy(httpProxyHost, httpProxyPort));
+        return httpClient;
+    }
+
     public void setEnableShutdown(boolean enable) {
         enableShutdown = enable;
     }
@@ -86,10 +102,6 @@ public class EchoProxy extends ProxyServlet {
 
     public void setEchoPrefix(String echoPrefix) {
         this.echoPrefix = echoPrefix;
-    }
-
-    protected void addViaHeader(Request proxyRequest) {
-        // proxyRequest.header(HttpHeader.VIA, VIA_HEADER);
     }
 
     public void run(CommandLine cmd) {
@@ -113,7 +125,21 @@ public class EchoProxy extends ProxyServlet {
         if (cmd.hasOption(OPTIONS_PREFIX)) {
             setEchoPrefix(cmd.getOptionValue(OPTIONS_PREFIX));
         }
-
+        if (cmd.hasOption(OPTIONS_HTTP_PROXY)) {
+            String httpProxy = cmd.getOptionValue(OPTIONS_HTTP_PROXY);
+            String parts[] = httpProxy.split(":");
+            if (parts.length != 2) {
+                System.out.println("Invalid format og argument " + OPTIONS_HTTP_PROXY);
+                printHelp();
+                return;
+            }
+            if (!isInteger(parts[1], 0, Integer.MAX_VALUE)) {
+                System.out.println("Http proxy port must be positive integer (" + parts[1] + ")");
+                return;
+            }
+            httpProxyHost = parts[0];
+            httpProxyPort = Integer.parseInt(parts[1]);
+        }
         setEnableShutdown(shutdownKey != null);
         setShutdownKey(shutdownKey);
         setShutdownContext(shutdownContext);
@@ -171,12 +197,17 @@ public class EchoProxy extends ProxyServlet {
         Option file = new Option(OPTIONS_FILE, true, "Path to file to echo to. If given echo will be appended to file "
                 + "in addition to be printed to standard out. Optional.");
         file.setRequired(false);
+        Option httpProxy = new Option(OPTIONS_HTTP_PROXY, true, "Optional. Proxy to forward http requests to if "
+                + "echoproxy must access internet through network proxy. Format of argument is <proxyhost>:<proxyport> "
+                + " (e.g., webproxy:8080)");
+        httpProxy.setRequired(false);
 
         options.addOption(help);
         options.addOption(port);
         options.addOption(shutdownKey);
         options.addOption(prefix);
         options.addOption(file);
+        options.addOption(httpProxy);
         return options;
     }
 
