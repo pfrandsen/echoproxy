@@ -74,8 +74,8 @@
                                     <manifestEntries>
                                         <Main-Class>proxy.EchoProxy</Main-Class>
                                         <url>https://github.com/pfrandsen/echoproxy</url>
-                                        <Implementation-Version>${version}</Implementation-Version>
-                                        <Implementation-Title>${artifactId}</Implementation-Title>
+                                        <Implementation-Version>${project.version}</Implementation-Version>
+                                        <Implementation-Title>${project.artifactId}</Implementation-Title>
                                         <License>Apache 2.0, http://www.apache.org/licenses/LICENSE-2.0.html</License>
                                     </manifestEntries>
                                 </transformer>
