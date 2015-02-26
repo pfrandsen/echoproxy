@@ -9,10 +9,15 @@ The proxy was developed to get a simple way of capturing dependencies in wsdl fi
 all the resources (schemas) that a wsdl depends on. The pseudo code for analyzing a set of wsdl's is given below.
 
     start echo proxy (with file logging)
+    remove log file (to make sure log is empty)
+
     for each wsdl do
       run wsimport on wsdl with proxy set to echo proxy
       move log file "wsdl name".log
+
     stop echo proxy
+
+A log file for each wsdl listing its dependencies will now be available. See scripts/testrun.sh for example.
 
 ## Building
 
