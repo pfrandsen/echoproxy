@@ -19,6 +19,10 @@ all the resources (schemas) that a wsdl depends on. The pseudo code for analyzin
 
 A log file for each wsdl listing its dependencies will now be available. See scripts/testrun.sh for example.
 
+## Notes
+
+Does not work for https
+
 ## Building
 
     mvn clean package
